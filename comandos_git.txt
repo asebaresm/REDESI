@@ -1,0 +1,28 @@
+#Ver los cambios que has realizado en tu copia local:
+#(NO te mostrará los cambios quehaya hecho yo en la nube)
+git status
+
+#Añadir cambios (si no ha borrado archivos):
+git add .
+
+#Añadir cambios (si has borrado archivos):
+git add . -A
+
+#Commit de cambios:
+git commit -m "mensaje del commit"
+
+#Subir cambios:
+git push origin master
+
+#Descargar versión más actualizada:
+git pull
+
+#si yo he añadido cambios cuando no estabas, te pedirá que:
+#	- hagas un pull
+#	- puedes cambiar el mensaje por dejecto del merge en el editor
+#	- guardar con Ctrl+X
+#	- push de nuevo
+
+#Te pedirá tu mail de la UAM cuando hagas el primer commit en el PC 
+#del lab. Copia el comando tal cual cambiando tu email y au.
+
