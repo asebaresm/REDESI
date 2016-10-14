@@ -2,7 +2,6 @@
 # Makefile con auto-deteccion de dependencias: nunca querras usar otro
 # (de tipo .h; las de linkado hay que enumerarlas)
 # Ver http://www.cs.washington.edu/orgs/acm/tutorials/dev-in-unix/makefiles.html
-#PENE
 ################################################################################
 
 # banderas de compilacion (PUEDE SER UTIL CAMBIARLAS)
