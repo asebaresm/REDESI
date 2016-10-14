@@ -6,7 +6,6 @@
 
  Compila: gcc -Wall -o practica2 practica2.c -lpcap, make
  Autor: Jose Luis Garcia Dorado, Jorge E. Lopez de Vergara Mendez, Rafael Leira
-PENEEE
  2015 EPS-UAM
 ***************************************************************************/
 
