@@ -3,7 +3,7 @@
  Muestra las direciones Ethernet de la traza que se pasa como primer parametro.
  Debe complatarse con mas campos de niveles 2, 3, y 4 tal como se pida en el enunciado.
  Debe tener capacidad de dejar de analizar paquetes de acuerdo a un filtro.
-
+Mariposa
  Compila: gcc -Wall -o practica2 practica2.c -lpcap, make
  Autor: Jose Luis Garcia Dorado, Jorge E. Lopez de Vergara Mendez, Rafael Leira
  2015 EPS-UAM
