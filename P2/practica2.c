@@ -34,7 +34,7 @@
 #define ERROR 1
 
 #define IP_ALEN      4      /* Tamanio de la direccion IP           */
-#define IP_HLEN      24     /* Tamanio de la cabecera IP            */
+#define IP_HLEN      20     /* Tamanio de la cabecera IP            */
 #define IP_VER       1      /* Tamanio de la version IP            */
 #define IP_LON		 2 		/* Tamanio del campo longitud IP*/
 #define IP_POS		 2		/* Tamanio del campo posicion IP en bits*/
@@ -53,7 +53,7 @@
 #define TPT_DATA_MAX  (TPT_FRAME_MAX - TPT_HLEN) /* Tamano maximo y minimo de los datos de una trama ethernet*/
 #define TPT_DATA_MIN  (TPT_FRAME_MIN - TPT_HLEN) /* Tamanio de la direccion TCP	*/
 
-#define UDP_ALEN     2      /* Tamanio de la direccion UDP           */
+#define UDP_ALEN     4      /* Tamanio de la direccion UDP           */
 #define UDP_HLEN      24     /* Tamanio de la cabecera UDP            */
 #define UDP_LON		 2 		/* Tamanio del campo longitud UDP*/
 #define UDP_FRAME_MAX 1514   /* Tamanio maximo la trama ethernet (sin CRC) */
@@ -61,6 +61,12 @@
 #define UDP_DATA_MAX  (UDP_FRAME_MAX - UDP_HLEN) /* Tamano maximo y minimo de los datos de una trama ethernet*/
 #define UDP_DATA_MIN  (UDP_FRAME_MIN - UDP_HLEN) /* Tamanio de la direccion UDP						*/
 
+//#define DEBUG
+#ifdef DEBUG
+	#define DEBUG_PRINT(x) printf x
+#else
+	#define DEBUG_PRINT(x) do {} while (0)
+#endif
 
 void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete);
 
@@ -72,6 +78,8 @@ uint8_t ipo_filtro[IP_ALEN] = {0};
 uint8_t ipd_filtro[IP_ALEN] = {0};
 uint16_t po_filtro = 0;
 uint16_t pd_filtro = 0;
+int tamIHL = 0;
+int proto = 0;
 
 void handleSignal(int nsignal)
 {
@@ -270,20 +278,28 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 	uint16_t pos = 0;
 	//uint8_t pos = 0;
 	memcpy(&aux, &paquete[0], sizeof(uint8_t));
+	
 	/*printf("PAQUETE2");
 	printf("%02X\n", aux);
 	printf("DESPLAZAMIENTO2");
 	printf("%02X\n", paquete[0]);*/
 	aux = (paquete[0]>>4);
-	
+
 	printf("Version = ");
-	printf("%d", aux);
+	printf("%d\n", aux);
+
+	memcpy(&aux, &paquete[0], sizeof(uint8_t));
+	aux = aux << 4;
+	aux = aux >> 4;
+	tamIHL = aux *(32/8);
+	//printf("Tamano IHL %d\n",tamIHL);
+	DEBUG_PRINT(("Tamano IHL %d\n",tamIHL));
 
 	paquete+= IP_VER +1;
-	printf("\n");
 	printf("Longitud Total IP = ");
-	for (i = 0; i < IP_LON; i++) {
-		printf("%d.", paquete[i]);
+	printf("%d", paquete[0]);
+	for (i = 1; i < IP_LON; i++) {
+		printf(".%d", paquete[i]);
 	}
 
 	paquete+= IP_LON + 2;
@@ -314,6 +330,16 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 		paquete+= IP_TVID;
 		printf("Protocolo = ");
 		printf("%d\n", paquete[0]);
+
+
+        if (paquete[0] == 6){
+            proto = 6;
+        }else if (paquete[0] == 17){
+            proto = 17;
+        } else{
+            proto = paquete[0];
+        }
+
 		if(paquete[0] == 6 || paquete[0] == 17){
 			
 			paquete+= 3;
@@ -333,9 +359,41 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 			for (i = 1; i < IP_ALEN; i++){
 				printf(".%d", paquete[i]);
 			}
+
+			paquete += 4 + (tamIHL-IP_HLEN); //NUMERO_MAGICO
             /*END NIVEL 3*/
             /*EMPIEZA NIVEL 4 - YA ES TCP/UDP*/
+            DEBUG_PRINT(("\n__NIVEL 4__"));
+            if (proto == 6){        //TCP
+                printf("\nProtocolo TCP");
+                printf("\nDireccion origen: ");
+                for(i=0; i<TPT_ALEN; i++){
+                    printf("%d", paquete[i]);
+                }
+                paquete += TPT_ALEN;
+                printf("\nDireccion destino: ");
+                for(i=0; i<TPT_ALEN; i++) {
+                    printf("%d", paquete[i]);
+                }
+            }else if(proto == 17){  //UDP
+                printf("\nProtocolo UDP");
+                printf("\nDireccion origen: ");
+                for(i=0; i<UDP_ALEN; i++){
+                    printf("%d", paquete[i]);
+                }
+                paquete += UDP_ALEN;
+                printf("\nDireccion destino: ");
+                for(i=0; i<UDP_ALEN; i++) {
+                    printf("%d", paquete[i]);
+                }
+                paquete += UDP_ALEN;
+                printf("\nLongitud:");
+                for(i=0; i<UDP_ALEN; i++) {
+                    printf("%d.", paquete[i]);
+                }
+            }else{                  //NISMO
 
+            }
 			//for (i = 0; i < IP_LON; i++) {
 				//aux = paquete[i];
 				//pac = paquete[i];
