@@ -15,7 +15,7 @@ git commit -m "mensaje del commit"
 git push origin master
 
 #Descargar versión más actualizada:
-git pull
+git pull origin master
 
 #si yo he añadido cambios cuando no estabas, te pedirá que:
 #	- hagas un pull
@@ -25,4 +25,13 @@ git pull
 
 #Te pedirá tu mail de la UAM cuando hagas el primer commit en el PC 
 #del lab. Copia el comando tal cual cambiando tu email y au.
+
+#hacer que tu branch local sea un clone del remoto 
+(después de haber descartado cambios):
+git fetch origin
+git reset --hard origin/master
+
+#Si quieres guardar tus cambios locales en remoto antes de hacer lo de arriba:
+git commit -m "Saving my work, just in case"
+git branch my-saved-work
 
