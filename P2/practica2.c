@@ -53,7 +53,7 @@
 #define TPT_DATA_MAX  (TPT_FRAME_MAX - TPT_HLEN) /* Tamano maximo y minimo de los datos de una trama ethernet*/
 #define TPT_DATA_MIN  (TPT_FRAME_MIN - TPT_HLEN) /* Tamanio de la direccion TCP	*/
 
-#define UDP_ALEN     4      /* Tamanio de la direccion UDP           */
+#define UDP_ALEN     2      /* Tamanio de la direccion UDP           */
 #define UDP_HLEN      24     /* Tamanio de la cabecera UDP            */
 #define UDP_LON		 2 		/* Tamanio del campo longitud UDP*/
 #define UDP_FRAME_MAX 1514   /* Tamanio maximo la trama ethernet (sin CRC) */
@@ -61,7 +61,7 @@
 #define UDP_DATA_MAX  (UDP_FRAME_MAX - UDP_HLEN) /* Tamano maximo y minimo de los datos de una trama ethernet*/
 #define UDP_DATA_MIN  (UDP_FRAME_MIN - UDP_HLEN) /* Tamanio de la direccion UDP						*/
 
-//#define DEBUG
+#define DEBUG
 #ifdef DEBUG
 	#define DEBUG_PRINT(x) printf x
 #else
@@ -99,6 +99,13 @@ int main(int argc, char **argv)
 	char entrada[256];
 	int long_index = 0, retorno = 0;
 	char opt;
+	
+	
+	int fflag_ipd = 0;
+	int fflag_ipo = 0;
+
+	int fflag_po = 0;
+	int fflag_pd = 0;
 	
 	(void) errbuf; //indicamos al compilador que no nos importa que errbuf no se utilice. Esta linea debe ser eliminada en la entrega final.
 
@@ -211,19 +218,32 @@ int main(int argc, char **argv)
 	}
 
 	//Simple comprobacion de la correcion de la lectura de parametros
+	printf("\n================================================================\n");
 	printf("Filtro:");
-	//if(ipo_filtro[0]!=0)
-	printf("ipo_filtro:%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"\t", ipo_filtro[0], ipo_filtro[1], ipo_filtro[2], ipo_filtro[3]);
-	//if(ipd_filtro[0]!=0)
-	printf("ipd_filtro:%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"\t", ipd_filtro[0], ipd_filtro[1], ipd_filtro[2], ipd_filtro[3]);
+	if((ipo_filtro[0]!=(unsigned)0) && (ipo_filtro[1]!=(unsigned)0) && (ipo_filtro[2]!=(unsigned)0) && (ipo_filtro[3]!=(unsigned)0)){
+		printf("ipo_filtro:%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"\t", ipo_filtro[0], ipo_filtro[1], ipo_filtro[2], ipo_filtro[3]);
+		fflag_ipo = 1;
+	}
+	if((ipd_filtro[0]!=(unsigned)0) && (ipd_filtro[1]!=(unsigned)0) && (ipd_filtro[2]!=(unsigned)0) && (ipd_filtro[3]!=(unsigned)0)){
+		printf("ipd_filtro:%"PRIu8".%"PRIu8".%"PRIu8".%"PRIu8"\t", ipd_filtro[0], ipd_filtro[1], ipd_filtro[2], ipd_filtro[3]);
+		fflag_ipd = 1;
+	}
 
-	if (po_filtro != 0) {
+	if (po_filtro != (unsigned)0) {
 		printf("po_filtro=%"PRIu16"\t", po_filtro);
+		fflag_po = 1;
 	}   
 
-	if (pd_filtro != 0) {
+	if (pd_filtro != (unsigned)0) {
 		printf("pd_filtro=%"PRIu16"\t", pd_filtro);
+		fflag_pd = 1;
 	}
+
+	
+	if(fflag_ipo || fflag_ipd || fflag_pd || fflag_po ){
+		printf("\n");
+	}
+	
 	printf("\n\n");
 
 	do {
@@ -250,8 +270,10 @@ int main(int argc, char **argv)
 
 void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete)
 {
+	
 	printf("Nuevo paquete capturado el %s\n", ctime((const time_t *) & (cabecera->ts.tv_sec)));
 
+	uint16_t port = 0;
 	int i = 0;
 
 	printf("Direccion ETH destino= ");
@@ -359,67 +381,54 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 			for (i = 1; i < IP_ALEN; i++){
 				printf(".%d", paquete[i]);
 			}
-
-			paquete += 4 + (tamIHL-IP_HLEN); //NUMERO_MAGICO
+			paquete += 4;
+			paquete = paquete + (tamIHL-IP_HLEN); //NUMERO_MAGICO
             /*END NIVEL 3*/
             /*EMPIEZA NIVEL 4 - YA ES TCP/UDP*/
             DEBUG_PRINT(("\n__NIVEL 4__"));
             if (proto == 6){        //TCP
                 printf("\nProtocolo TCP");
-                printf("\nDireccion origen: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<TPT_ALEN; i++){
-                    printf(".%d", paquete[i]);
-                }
+                printf("\nPuerto origen: ");
+
+                port = paquete[0];
+                port = port << 8;
+                port = port|paquete[1];
+                printf("%d", port);
+
                 paquete += TPT_ALEN;
-                printf("\nDireccion destino: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<TPT_ALEN; i++) {
-                    printf(".%d", paquete[i]);
-                }
+                printf("\nPuerto destino: ");
+
+                port = paquete[0];
+                port = port << 8;
+                port = port|paquete[1];
+                printf("%d", port);
             }else if(proto == 17){  //UDP
                 printf("\nProtocolo UDP");
-                printf("\nDireccion origen: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<UDP_ALEN; i++){
-                    printf(".%d", paquete[i]);
-                }
+                printf("\nPuerto origen: ");
+
+                port = paquete[0];
+                port = port << 8;
+                port = port|paquete[1];
+                printf("%d", port);
+
                 paquete += UDP_ALEN;
-                printf("\nDireccion destino: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<UDP_ALEN; i++) {
-                    printf(".%d", paquete[i]);
-                }
+                printf("\nPuerto destino: ");
+
+                port = paquete[0];
+                port = port << 8;
+                port = port|paquete[1];
+                printf("%d", port);
                 paquete += UDP_ALEN;
                 printf("\nLongitud:");
-                for(i=0; i<UDP_ALEN; i++) {
-                    printf("%d.", paquete[i]);
-                }
+
+                port = paquete[0];
+                port = port << 8;
+                port = port|paquete[1];
+                printf("%d", port);
             }else{                  //NISMO
 
             }
-			//for (i = 0; i < IP_LON; i++) {
-				//aux = paquete[i];
-				//pac = paquete[i];
-				//printf(":%d", pos[]);
-				/*sprintf(posicion, aux, paquete[0]);
-
-				printf(":%d", atoi(posicion));*/
-			//}
-			//insertar 3 ceros derecha y luego 3 ceros izquierda
-			/*int versionIp;
-			versionIp = paquete[0];
-			printf("%d", paquete[0]);
-			for(i = 0; i < paquete[0]; i++){
-				if(versionIp < 10){
-					break;
-				}
-				versionIp = versionIp -10;
-			}*/
-			/*
-			for (i = 1; i < 1; i++) {
-				printf(":%d", paquete[i]);
-			}*/
+			//
 		}else{
 			printf("Protocolo no esperado");
 		}
