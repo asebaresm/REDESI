@@ -80,6 +80,11 @@ uint16_t po_filtro = 0;
 uint16_t pd_filtro = 0;
 int tamIHL = 0;
 int proto = 0;
+int fflag_ipd = 0;
+int fflag_ipo = 0;
+
+int fflag_po = 0;
+int fflag_pd = 0;
 
 void handleSignal(int nsignal)
 {
@@ -99,13 +104,7 @@ int main(int argc, char **argv)
 	char entrada[256];
 	int long_index = 0, retorno = 0;
 	char opt;
-	
-	
-	int fflag_ipd = 0;
-	int fflag_ipo = 0;
 
-	int fflag_po = 0;
-	int fflag_pd = 0;
 	
 	(void) errbuf; //indicamos al compilador que no nos importa que errbuf no se utilice. Esta linea debe ser eliminada en la entrega final.
 
@@ -274,6 +273,7 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 	printf("Nuevo paquete capturado el %s\n", ctime((const time_t *) & (cabecera->ts.tv_sec)));
 
 	uint16_t port = 0;
+	uint16_t lon = 0;
 	int i = 0;
 
 	printf("Direccion ETH destino= ");
@@ -319,10 +319,11 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 
 	paquete+= IP_VER +1;
 	printf("Longitud Total IP = ");
-	printf("%d", paquete[0]);
-	for (i = 1; i < IP_LON; i++) {
-		printf(".%d", paquete[i]);
-	}
+	memcpy(&lon, &aux, sizeof(uint16_t));
+	lon = lon << 8;
+	lon = lon|paquete[1];
+	printf("%d", lon);
+	
 
 	paquete+= IP_LON + 2;
 	printf("\n");
@@ -366,6 +367,10 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 			
 			paquete+= 3;
 
+			if((fflag_ipo==1) && (ipo_filtro[0]==paquete[0]) && (ipo_filtro[1]!=paquete[1]) && (ipo_filtro[2]==paquete[2]) && (ipo_filtro[3]==paquete[3])){
+				printf("\n No cumple el filtro de IP origen.");
+			}
+
 			printf("Direccion IP origen = ");
 			printf("%d", paquete[0]);
 
@@ -375,6 +380,10 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
 			printf("\n");
 			paquete+= IP_ALEN;
 
+			if((fflag_ipd==1) && (ipd_filtro[0]!=paquete[0]) && (ipd_filtro[1]!=paquete[1]) && (ipd_filtro[2]!=paquete[2]) && (ipd_filtro[3]!=paquete[3])){
+				printf("\n No cumple el filtro de IP destino.");
+				return;
+			}
 			printf("Direccion IP destino = ");
 			printf("%d", paquete[0]);
 
@@ -388,19 +397,28 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
             DEBUG_PRINT(("\n__NIVEL 4__"));
             if (proto == 6){        //TCP
                 printf("\nProtocolo TCP");
+
                 printf("\nPuerto origen: ");
 
                 port = paquete[0];
                 port = port << 8;
                 port = port|paquete[1];
-                printf("%d", port);
 
+                if((fflag_po==1) && (po_filtro !=(unsigned)port)){
+                	printf("\n No cumple el filtro de puerto origen.");
+                	return;
+                }
+                printf("%d", port);
                 paquete += TPT_ALEN;
                 printf("\nPuerto destino: ");
 
                 port = paquete[0];
                 port = port << 8;
                 port = port|paquete[1];
+                if((fflag_pd==1) && (pd_filtro !=(unsigned)port)){
+                	printf("\n No cumple el filtro de puerto destino.");
+                	return;
+                }
                 printf("%d", port);
             }else if(proto == 17){  //UDP
                 printf("\nProtocolo UDP");
@@ -409,6 +427,10 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
                 port = paquete[0];
                 port = port << 8;
                 port = port|paquete[1];
+                if((fflag_po==1) && (po_filtro !=(unsigned)port)){
+                	printf("\n No cumple el filtro de puerto origen.");
+                	return;
+                }
                 printf("%d", port);
 
                 paquete += UDP_ALEN;
@@ -417,6 +439,10 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
                 port = paquete[0];
                 port = port << 8;
                 port = port|paquete[1];
+                if((fflag_pd==1) && (pd_filtro !=(unsigned)port)){
+                	printf("\n No cumple el filtro de puerto destino.");
+                	return;
+                }
                 printf("%d", port);
                 paquete += UDP_ALEN;
                 printf("\nLongitud:");
