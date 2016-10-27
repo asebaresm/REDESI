@@ -140,10 +140,10 @@ int main(int argc, char **argv)
 			/*printf("Descomente el código para leer y abrir de una interfaz\n");
 			exit(ERROR);*/
 			
-			if ( (descr = pcap_open_live(optarg, BUFSIZ, 0, 100, errbuf)) == NULL){
-				printf("Error: seleccionando filtro(): Interface: %s, %s %s %d.\n", optarg,errbuf,__FILE__,__LINE__);
+			/*if ( (descr = ??(optarg, ??, ??, ??, errbuf)) == NULL){
+				printf("Error: ??(): Interface: %s, %s %s %d.\n", optarg,errbuf,__FILE__,__LINE__);
 				exit(ERROR);
-			}
+			}*/
 			break;
 
 		case 'f' :
@@ -367,28 +367,24 @@ void analizar_paquete(const struct pcap_pkthdr *cabecera, const uint8_t *paquete
             if (proto == 6){        //TCP
                 printf("\nProtocolo TCP");
                 printf("\nDireccion origen: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<TPT_ALEN; i++){
-                    printf(".%d", paquete[i]);
+                for(i=0; i<TPT_ALEN; i++){
+                    printf("%d", paquete[i]);
                 }
                 paquete += TPT_ALEN;
                 printf("\nDireccion destino: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<TPT_ALEN; i++) {
-                    printf(".%d", paquete[i]);
+                for(i=0; i<TPT_ALEN; i++) {
+                    printf("%d", paquete[i]);
                 }
             }else if(proto == 17){  //UDP
                 printf("\nProtocolo UDP");
                 printf("\nDireccion origen: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<UDP_ALEN; i++){
-                    printf(".%d", paquete[i]);
+                for(i=0; i<UDP_ALEN; i++){
+                    printf("%d", paquete[i]);
                 }
                 paquete += UDP_ALEN;
                 printf("\nDireccion destino: ");
-                printf("%d", paquete[0]);
-                for(i=1; i<UDP_ALEN; i++) {
-                    printf(".%d", paquete[i]);
+                for(i=0; i<UDP_ALEN; i++) {
+                    printf("%d", paquete[i]);
                 }
                 paquete += UDP_ALEN;
                 printf("\nLongitud:");
