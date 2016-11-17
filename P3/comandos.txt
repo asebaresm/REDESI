@@ -1,0 +1,3 @@
+tshark -r mierdo.pcap -T fields -e ip.proto > nivel4.t
+tshark -r mierdo.pcap -T fields -e eth > nivel2.txt
+tshark -r mierdo.pcap -T fields -e eth.type > nivel3.txt
