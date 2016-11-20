@@ -1,0 +1,20 @@
+tshark -r mierdo.pcap -T fields -e ip.proto > nivel4.t
+tshark -r mierdo.pcap -T fields -e eth > nivel2.txt
+tshark -r mierdo.pcap -T fields -e eth.type > nivel3.txt
+tshark -r traza.pcap -T fields -e frame.len -Y eth.dst==00:11:88:CC:33:1B | sort -n > eht_ord_dst.txt
+tshark -r traza.pcap -T fields -e frame.len -Y eth.src==00:11:88:CC:33:1B | sort -n > eht_ord_src.txt
+uniq -c eht_ord_src.txt > eth_ord_src_cnt.txt
+uniq -c eht_ord_dst.txt > eth_ord_dst_cnt.txt
+sort -nr eth_ord_src_cnt.txt 
+sort -nr eth_dst_src_cnt.txt 
+
+uniq -c eth_src.txt > eth_src_ord.txt
+
+sort -n -k 2 eth_src_ord.txt > eth_ord_src_cnt.txt 
+
+
+tshark -r traza.pcap -T fields -e frame.len -Y eth.src==00:11:88:CC:33:1B | sort -n -r > eth_src.txt
+uniq -c eth_src.txt > eth_src_ord.txt
+sort -n -k 2 eth_src_ord.txt > eth_ord_src_cnt.txt 
+gcc -Wall -o crearCDF crearCDF.c
+./crearCDF eth_src_ord.txt
