@@ -1,59 +1,148 @@
 #!bin/bash
 
-#============================================================================================
+#===============================================================================================
 #DOCUMENTACION
-#============================================================================================
+#===============================================================================================
 #Sobre divisiones de resultados de otros comandos:
 #	(1)	http://unix.stackexchange.com/questions/24035/how-to-calculate-values-in-a-shell-script
 #	(2)	http://stackoverflow.com/questions/12147040/division-in-script-and-floating-point
 #
-#============================================================================================
-#EJCUCION
-#============================================================================================
+#Colores *-*
+#	(1) https://linuxtidbits.wordpress.com/2008/08/11/output-color-on-bash-scripts/
+#
+#Sobre display filters (y capture filters):
+#	https://wiki.wireshark.org/DisplayFilters
+#
+#
+#Notacion de display filters:
+#Comparison operators					|	Logical expressions		
+#eq, ==    Equal						|	and, &&   Logical AND
+#ne, !=    Not Equal					|	or,  ||   Logical OR
+#gt, >     Greater than					|	not, !    Logical NOT
+#lt, <     Less Than					|	
+#ge, >=    Greater than or Equal to		|	
+#le, <=    Less than or Equal to		|	
+#
+#Series con X granularidad:
+#	traza.pcap -qz io,stat,1,"eth" NO VA, EQUIVALENTE A traza.pcap -qz io,stat,1,"not(not eth)"
+#
+#Sobre 'awk script embedding in a bash script':
+#	http://www.linuxtopia.org/online_books/advanced_bash_scripting_guide/wrapper.html
+#
+#
+#==============================================================================================
+#EJECUCION
+#==============================================================================================
 
-echo "\n============Porcentajes de paquetes============"
+red=`tput setaf 1`
+green=`tput setaf 2`
+blu=`tput setaf 4`
+reset=`tput sgr0`
+
+if [ ! -f traza.pcap ]; then
+    echo "\nERROR: no se ha encontrado la traza .pcap"
+    exit 1
+fi
+
+
+clear
+echo "\n============${blu}Porcentajes de paquetes${reset}============"
 
 #TODOS los paquetes
-echo "Volcando todos los paquetes a fichero..."
+#echo "Volcando todos los paquetes a fichero..."
 #tshark -r traza.pcap -T text -V > todos_paquetes.txt
-if [ ! -f todos_paquetes.out ]; then
-    tshark -r traza.pcap -Y 'eth' >> todos_paquetes.out
+#if [ ! -f todos_paquetes.out ]; then
+#    tshark -r traza.pcap -Y 'eth' >> todos_paquetes.out
+#fi
+
+#Ficheros para luego filtrar
+echo "\n${green}Generando ficheros...${reset}"
+
+#
+#if [ ! -f ips.out ]; then
+#	tshark -r traza.pcap -T fields -e ip.src > ips.out
+#	tshark -r traza.pcap -T fields -e ip.dst >> ips.out
+#fi
+
+#Para top ips (apariciones)+ top ips (bytes)
+#fichero (ip.src primero y despues ip.dst concatenado): ip | frame.len
+if [ ! -f ips_framelen.out ]; then
+	tshark -r traza.pcap -T fields -e ip.src -e frame.len -Y 'ip' > ips_framelen.out
+	tshark -r traza.pcap -T fields -e ip.dst -e frame.len -Y 'ip' >> ips_framelen.out
 fi
 
-#Paquetes que son ETH|VLAN|IP
-echo "Filtrando paquetes ETH|VLAN|IP..."
-#Paquetes que son ETH|IP
-echo "Filtrando paquetes que son ETH|IP..."
-if [ ! -f eth_ip.out ]; then
-    tshark -r traza.pcap -Y 'eth.type==0x8100 && vlan.etype==0x0800' > eth_ip.out
-    tshark -r traza.pcap -Y 'eth.type==0x8100' >> eth_ip.out
-fi
-
-#Paquetes que NO son ETH|VLAN|IP
-echo "Filtrando paquetes que NO son ETH|VLAN|IP..."
-#Paquetes que NO son ETH|VLAN
-echo "Filtrando paquetes que NO son ETH|VLAN..."
-if [ ! -f eth_NO_ip.out ]; then
-    tshark -r traza.pcap -Y 'eth.type==0x8100 && !vlan.etype==0x0800' > eth_NO_ip.out
-    tshark -r traza.pcap -Y '!eth.type==0x8100' >> eth_NO_ip.out
-fi
-
-#count=$let ( ($count_todos + $count_eth_ip)/$count_todos))
-#porcentaje_IP=$((count_eth_ip/count_todos))
-#porcentaje_IP=$(expr 100*(count_eth_ip /count_todos))
 #Counts
-count_todos=$(wc -l < todos_paquetes.out)
-count_eth_ip=$(wc -l < eth_ip.out)
-count_eth_NO_ip=$(wc -l < eth_NO_ip.out)
+echo "${green}Filtrando paquetes...${reset}"
+count_todos=$(tshark -r traza.pcap -Y 'eth' | wc -l)
+count_eth_ip=$(tshark -r traza.pcap -Y '(eth.type==0x8100 && vlan.etype==0x0800) || eth.type==0x0800' | wc -l)
+count_eth_NO_ip=$(tshark -r traza.pcap -Y '!((eth.type==0x8100 && vlan.etype==0x0800) || eth.type==0x0800)' | wc -l)
+count_tcp=$(tshark -r traza.pcap -Y '((eth.type==0x8100 && vlan.etype==0x0800) || eth.type==0x0800) && tcp' | wc -l)
+count_udp=$(tshark -r traza.pcap -Y '((eth.type==0x8100 && vlan.etype==0x0800) || eth.type==0x0800) && udp' | wc -l)
+count_others=$(tshark -r traza.pcap -Y '((eth.type==0x8100 && vlan.etype==0x0800) || eth.type==0x0800) && !(tcp || udp)' | wc -l)
 
-echo "$count_todos"
-echo "$count_eth_ip"
-echo "$count_eth_NO_ip"
+top_ips_paquetes=$(awk -F"\t" '{print $1}' ips_framelen.out | sort | uniq -c | sort -rn | head -n 10)
 
-echo "\nPorcentaje paquetes IP:"
-# $((100*($count_eth_ip/$count_todos)))
-#let a=count_eth_ip/count_todos
-div=$(echo "scale=2; $count_eth_ip/$count_todos" | bc)
-res=$(echo "scale=2; $div*100" | bc)
-echo "$res"%
+echo "\nEn total:\t\t $count_todos"
+echo "IP:\t\t\t $count_eth_ip"
+echo "NO IP:\t\t\t $count_eth_NO_ip"
+echo "TCP:\t\t\t $count_tcp"
+echo "UDP:\t\t\t $count_udp"
+echo "Other:\t\t\t $count_others"
+
+#div=$(echo "scale=2; $count_eth_ip/$count_todos" | bc)
+#res=$(echo "scale=2; $div*100" | bc)
+#echo "$res"%
+
+#3 formas de hacerlo:
+#div=$(echo "scale=6; 100*$count_eth_ip/$count_todos" | bc )
+#div=$(echo "scale=6; 100*$count_eth_ip/$count_todos" | bc | awk '{printf "%f", $0}')
+div=$(echo "scale=6; x=100*$count_eth_ip/$count_todos; if(x<1) print 0; x" | bc )
+echo "\nPorcentaje paquetes ${blu}ETH|IP${reset} ó ${blu}ETH|VLAN|IP${reset}:\t\t$div%"
+
+#div=$(echo "scale=6; 100*$count_eth_NO_ip/$count_todos" | bc)
+#div=$(echo "scale=6; 100*$count_eth_NO_ip/$count_todos" | bc | awk '{printf "%f", $0}')
+div=$(echo "scale=6; x=100*$count_eth_NO_ip/$count_todos; if(x<1) print 0; x" | bc )
+echo "Porcentaje paquetes ${blu}NOT (ETH|IP ó ETH|VLAN|IP)${reset}:\t\t$div%"
+
+div=$(echo "scale=6; x=100*$count_tcp/$count_eth_ip; if(x<1) print 0; x" | bc )
+echo "Porcentaje paquetes ${blu}TCP${reset} sobre IP:\t\t\t$div%"
+
+div=$(echo "scale=6; x=100*$count_udp/$count_eth_ip; if(x<1) print 0; x" | bc )
+echo "Porcentaje paquetes ${blu}UDP${reset} sobre IP:\t\t\t$div%"
+
+div=$(echo "scale=6; x=100*$count_others/$count_eth_ip; if(x<1) print 0; x" | bc )
+echo "Porcentaje paquetes ${blu}otro${reset} tipo sobre IP:\t\t\t$div%"
+
+echo "\nTops:"
+
+echo "Direcciones IP más activas en ${blu}número de paquetes${reset}: "
+echo "$top_ips_paquetes"
+
+echo "\nDirecciones IP más activas en ${blu}número de bytes${reset}: "
+#tshark -r traza.pcap -T fields -e ip.src -e ip.dst -e frame.len -Y 'ip' > todos.out
+filtered_count=$(wc -l < ips_framelen.out)
+
+#BEGIN awk script
+#--------------------------------
+awk_func=$(
+awk '
+BEGIN {
+	FS = "\t";
+}
+{
+	suma_valores[$1] = suma_valores[$1] + $2;
+}
+END{
+	for(valor in suma_valores){
+		print suma_valores[valor]" \t"valor;
+	}
+}
+' "ips_framelen.out" | sort -rn | head -n 10
+)
+#"ips_framelen.out" > "top_ips.out"
+#sort -rn "top_ips.out"| head -n 10
+#--------------------------------
+#END  awk script
+echo "$awk_func"
+
 
