@@ -1,0 +1,4 @@
+- FILTRO VLAN:
+	eth.type==0x8100 && vlan.etype==0x0800 #filtra paquetes mediante VLAN y son IP a la vez o nos ahorramos el 'vlan.etype'
+
+- 

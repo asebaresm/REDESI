@@ -1,0 +1,8 @@
+#!/bin/bash
+cont=1
+for i in cat eth_src_ord_cnt.txt
+do 
+      var= nl salida.txt | grep $cont | awk '{print $2}'
+      echo $i":"$var
+      let cont = cont+1
+done

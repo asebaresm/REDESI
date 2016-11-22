@@ -1,0 +1,5 @@
+generadorPCAPx64
+*.pcap
+*.o
+*.d
+*.out
