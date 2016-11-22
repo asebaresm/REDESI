@@ -192,4 +192,9 @@ END{
 #END  awk script 2
 echo "$awk_func"
 
+#'throughput'
+#tshark -r traza.pcap -qz io,stat,1,5,"(eth.addr==00:11:88:CC:33:1B)&&((tcp && ip.addr==37.246.132.71)||(udp && udp.port==54189))" > throughput.out
+
+# eth="..." AND ((tcp AND "ip") OR (udp AND "puerto"))
+
 
