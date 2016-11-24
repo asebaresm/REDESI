@@ -13,7 +13,7 @@ gnuplot -persist <<-EOFMarker
 	set logscale x
 	set logscale y
 	set term jpeg
-	set output "$1.jpeg"
+	set output "Graficas/$1.jpeg"
 	plot "salida.txt" using 1:2 with steps title "$5"
 
 	

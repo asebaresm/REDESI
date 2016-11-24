@@ -21,44 +21,48 @@
 
 int crearCDF(char* filename_data, char* filename_cdf);
 
-int main(){
-	crearCDF("ejemplo.txt","salida.txt");
+int main(int argc, char *argv[]){
+	crearCDF(argv[1],"salida.txt");
 	return OK;
 }
 
 int crearCDF(char* filename_data, char* filename_cdf) {
-	char comando[255]; char linea[255]; char aux[255];
+	/*char comando[255]; char linea[255]; */char aux[255]; char datos[255];
 	int num_lines;
-	FILE *f;
-//sin control errores
-	sprintf(comando,"wc -l %s 2>&1",filename_data); //wc cuenta lineas acabadas por /n
-	printf("Comando en ejecucion: %s\n",comando);
-	f = popen(comando, "r");
-	if(f == NULL){
-		printf("Error ejecutando el comando\n");
+	char * cad;
+	//FILE *f;
+	FILE * leer;
+	FILE * escribir;
+	double porc;
+	double result;
+
+	printf("%s", filename_data);
+	leer = fopen(filename_data, "r");
+	escribir = fopen(filename_cdf, "w");
+
+
+	if(leer == NULL){
+		printf("Error leyendo el comando\n");
 		return ERROR;
 	}
-	fgets(linea,255,f);
-	printf("Retorno: %s\n",linea);
-	sscanf(linea,"%d %s",&num_lines,aux);
-	pclose(f);
 
-	sprintf(comando,"sort -n < %s > %s 2>&1",filename_data,filename_cdf);
-	printf("Comando en ejecucion: %s\n",comando);
-	f = popen(comando, "r");
-	if(f == NULL){
-		printf("Error ejecutando el comando\n");
-		return ERROR;
+	num_lines =0;
+	while(fgets(datos, 255, leer)){
+		cad = strtok(datos, " ");
+		num_lines += atoi(cad);
 	}
-	bzero(linea,255);
-	fgets(linea,255,f);
-	printf("Retorno: %s\n",linea);
-	pclose(f);
 
-//crear CDF
+	fclose(leer);
+	leer = fopen(filename_data, "r");
+	while(fgets(datos, 255, leer)){
+		strcpy(aux,datos);
+		cad = strtok(datos, " ");
+		porc = (atof(cad) / (double)num_lines);
+		result += porc;
+	    cad = strtok(NULL, " \n");
+		fprintf(escribir, "%s %.5f\n", cad, result);
+	}
+	fclose(leer);
 
 	return OK;
 }
-
-
-

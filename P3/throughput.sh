@@ -37,7 +37,7 @@ EOF
 procesaTabla
 
 gnuplot -persist <<-EOFMarker
-	set term png
+	set term jpeg
 	set output "Graficas/thoughput.png"
 	set title "Throughput" font ",14" textcolor rgbcolor "royalblue"
 	set xlabel "intervalo (s)"

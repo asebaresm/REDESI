@@ -11,7 +11,7 @@ gnuplot -persist <<-EOFMarker
 	set ylabel "$4"
 
 	set term jpeg
-	set output "$1.jpeg"
+	set output "Graficas/$1.jpeg"
 	plot "salida.txt" using 1:2 with steps title "$5"
 
 	
