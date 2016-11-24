@@ -194,7 +194,7 @@ gnuplot -persist <<-EOFMarker
 	set xlabel "$3"
 	set ylabel "$4"
 	set logscale x
-	set logscale y
+
 	set term jpeg
 	set output "Graficas/$1.jpeg"
 	plot "salida.txt" using 1:2 with steps title "$5"
@@ -322,7 +322,7 @@ ranking(){
 stats(){
 	#query para el throughput
 	#	eth="..." AND ((tcp AND "ip") OR (udp AND "puerto"))
-	tshark -r traza.pcap -qz io,stat,1,5,"(eth.addr==00:11:88:CC:33:1B)&&((tcp && ip.addr==37.246.132.71)||(udp && udp.port==54189))" > throughput.out
+	tshark -r traza.pcap -qz io,stat,1,"(eth.addr==00:11:88:CC:33:1B)&&((tcp && ip.addr==37.246.132.71)||(udp && udp.port==54189))" > throughput.out
 	procesaTabla
 	plot_throughput
 
@@ -474,6 +474,7 @@ if [ ! $# = 1 ]; then
 	exit 1
 fi
 
+mkdir -p Graficas
 if [ $1 = "--all" ]
 then
 	pintar_cabecera
