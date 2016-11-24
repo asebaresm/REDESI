@@ -101,7 +101,7 @@ awk_ips(){
 	' "ips_framelen.out" | sort -rn | head -n 10
 }
 
-#REQUIERE: port_framelen.out
+#REQUIERE: tcp_port_framelen.out, udp_port_famelen.out
 #BRIEF:    Genera una lista con awk de 2 columnas: <suma frame.len>" "<puerto asociado>
 awk_ports(){
 awk '
@@ -113,7 +113,7 @@ awk '
 	}
 	END{
 		for(valor in suma_valores){
-			print suma_valores[valor]" \t"valor;
+			print suma_valores[valor]"\t"valor;
 		}
 	}
 	' "$1" | sort -rn | head -n 10
@@ -210,7 +210,8 @@ EOFMarker
 
 #REQUIERE: los siguientes nombres de ficheros libres (se abren si existen/generan en la funcion):
 #			=> ips_framelen.out		
-#			=> port_framelen.out
+#			=> tcp_port_framelen.out
+#			=> udp_port_framelen.out
 #			
 #BRIEF:    realiza todas las oepraciones de los apartados 1-2
 ranking(){
@@ -230,12 +231,13 @@ ranking(){
 		tshark -r traza.pcap -T fields -e ip.src -e frame.len -Y 'ip' > ips_framelen.out
 		tshark -r traza.pcap -T fields -e ip.dst -e frame.len -Y 'ip' >> ips_framelen.out
 	fi
-	printf " [${green}#############            ${reset}](50%%)\r"
+	printf " [${green}########                 ${reset}](33%%)\r"
 
 	if [ ! -f tcp_port_framelen.out ]; then
 		tshark -r traza.pcap -T fields -e tcp.srcport -e frame.len -Y 'ip.proto==6' > tcp_port_framelen.out
 		tshark -r traza.pcap -T fields -e tcp.dstport -e frame.len -Y 'ip.proto==6' >> tcp_port_framelen.out
 	fi
+	printf " [${green}################         ${reset}](66%%)\r"
 
 	if [ ! -f udp_port_framelen.out ]; then
 		tshark -r traza.pcap -T fields -e udp.srcport -e frame.len -Y 'ip.proto==17' > udp_port_framelen.out
@@ -308,18 +310,18 @@ ranking(){
 #	awk_ports
 
 	echo "\nPuertos ${blu}TCP${reset} más activos en ${blu}número de paquetes${reset}: "
-	top_puertos_paquetes=$(awk -F"\t" '{print $1}' port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
+	top_puertos_paquetes=$(awk -F"\t" '{print $1}' tcp_port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
 	echo "$top_puertos_paquetes"
 
 	echo "\nPuertos ${blu}TCP${reset} más activos en ${blu}número de bytes${reset}: "
-	awk_ports
+	awk_ports tcp_port_framelen.out
 
 	echo "\nPuertos ${blu}UDP${reset} más activos en ${blu}número de paquetes${reset}: "
-	top_puertos_paquetes=$(awk -F"\t" '{print $1}' port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
+	top_puertos_paquetes=$(awk -F"\t" '{print $1}' udp_port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
 	echo "$top_puertos_paquetes"
 
 	echo "\nPuertos ${blu}UDP${reset} más activos en ${blu}número de bytes${reset}: "
-	awk_ports
+	awk_ports udp_port_framelen.out
 }
 
 #REQUIERE: los siguientes nombres de ficheros libres (se abren si existen/generan en la funcion):
@@ -491,7 +493,6 @@ if [ ! $# = 1 ]; then
 	exit 1
 fi
 
-mkdir -p Graficas
 if [ $1 = "--all" ]
 then
 	pintar_cabecera
@@ -505,6 +506,7 @@ then
 	exit 0
 elif [ $1 = "--stats" ]
 then
+	mkdir -p Graficas
 	pintar_cabecera
 	stats
 	exit 0
