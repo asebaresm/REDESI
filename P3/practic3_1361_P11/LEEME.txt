@@ -1,0 +1,30 @@
+Entrega: practica3_1361_P11
+
+Participantes:
+-Alfonso Sebares
+-Oscar Ruiz
+
+Comentarios: 
+Ejecutar el script de la forma:
+
+	sh skriptllex.sh
+
+Se mostrarán las distintas opciones de ejecución. En resumen:
+
+	sh skriptllex.sh --all
+
+		Se ejecuta el script completo, desde los porcentajes hasta la generación de ECDFs y sus gráficas.
+
+	sh skriptllex.sh --ranking
+
+		Se ejecutan las funcionalidades descritas en "Funcionalidad de los scripts desarrollados" 1-2
+
+	sh skriptllex.sh --stats
+
+		Se ejecutan las funcionalidades descritas en "Funcionalidad de los scripts desarrollados" 3-6, 
+		incluídas gráficas de gnuplot en formato jpeg.
+
+	sh skriptllex.sh --clean
+
+		Se eliminan todos los archivos generados que incluyen:
+			.txt .out .jpeg (carpeta Graficas), así como ejecutables generados
