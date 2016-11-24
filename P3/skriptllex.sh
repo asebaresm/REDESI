@@ -8,7 +8,7 @@
 #GRUPO:   1361
 #
 #===============================================================================================
-#DOCUMENTACION
+#FUENTES, DOCUMENTACION
 #===============================================================================================
 #Sobre divisiones de resultados de otros comandos:
 #	(1)	http://unix.stackexchange.com/questions/24035/how-to-calculate-values-in-a-shell-script
@@ -45,6 +45,8 @@
 #Sobre 'python embedding in bash scripts':
 #	(1) http://bhfsteve.blogspot.com.es/2014/07/embedding-python-in-bash-scripts.html
 #
+#Sobre bash para princpiantes:
+#	(1) http://tldp.org/LDP/Bash-Beginners-Guide/html/sect_07_02.html
 #
 #==============================================================================================
 #FUNCIONES AUX
@@ -54,6 +56,8 @@
 pintar_cabecera(){
 	clear
 	printf "====================${blu}Script de analisis${reset}===================="
+	printf "\nAlfonso Sebares, Oscar Ruiz (2016)"
+	printf "\nPareja 11, Grupo 1361\n"
 }
 
 #BRIEF: Descriptor de funciones del script
@@ -67,6 +71,8 @@ pintar_info_uso(){
 	echo "\t\tSe mostraran los porcentajes de paquetes IP/NO-IP y el top10, apartados 1-2.\n"
 	echo "\t${bold}--stats${reset}"
 	echo "\t\tSe generaran los archivos propios a las ECDFs y sus plots, apartados 3-6.\n"
+	echo "\t${bold}--clean${reset}"
+	echo "\t\tSe eliminan todos los ficheros .out .txt Graficas/.jpeg de ejecuciones anteriores\n"
 }
 
 #BRIEF: Comprueba si existe la traza
@@ -154,12 +160,48 @@ EOF
 #GENERA:   Graficas/throughput.jpeg
 plot_throughput(){
 gnuplot -persist <<-EOFMarker
-	set term png
-	set output "Graficas/thoughput.png"
+	set term jpeg
+	set output "Graficas/thoughput.jpeg"
 	set title "Throughput" font ",14" textcolor rgbcolor "royalblue"
 	set xlabel "intervalo (s)"
 	set ylabel "bytes"
 	plot "throughput.txt" using 1:3 with lines title "Datos"
+EOFMarker
+}
+
+toplot(){
+gnuplot -persist <<-EOFMarker
+
+	set term dumb	
+	set title "$2" font ",14" textcolor rgbcolor "royalblue"
+	set xlabel "$3"
+	set ylabel "$4"
+	set term jpeg
+	set output "Graficas/$1.jpeg"
+	plot "salida.txt" using 1:2 with steps title "$5"
+
+	replot
+
+	exit
+EOFMarker
+}
+
+toplottime(){
+gnuplot -persist <<-EOFMarker
+
+	set term dumb	
+	set title "$2" font ",14" textcolor rgbcolor "royalblue"
+	set xlabel "$3"
+	set ylabel "$4"
+	set logscale x
+	set logscale y
+	set term jpeg
+	set output "Graficas/$1.jpeg"
+	plot "salida.txt" using 1:2 with steps title "$5"
+	
+	replot
+
+	exit
 EOFMarker
 }
 #==============================================================================================
@@ -173,7 +215,7 @@ EOFMarker
 #BRIEF:    realiza todas las oepraciones de los apartados 1-2
 ranking(){
 	#Ficheros para luego filtrar
-	echo "\n${green}No cortar la ejecucion${red}"
+	echo "\n${green}NO CORTAR LA EJECUCION${red}"
 	echo "${green}Generando ficheros auxiliares...${reset}"
 	printf "[${green}                         ${reset}](0%%)\r"
 	#
@@ -279,6 +321,7 @@ ranking(){
 #GENERA: genera los ficheros .txt anteriores y las plots de cada apartado en Graficas.
 stats(){
 	#query para el throughput
+	#	eth="..." AND ((tcp AND "ip") OR (udp AND "puerto"))
 	tshark -r traza.pcap -qz io,stat,1,5,"(eth.addr==00:11:88:CC:33:1B)&&((tcp && ip.addr==37.246.132.71)||(udp && udp.port==54189))" > throughput.out
 	procesaTabla
 	plot_throughput
@@ -316,30 +359,100 @@ stats(){
 	tshark -r traza.pcap -T fields -e frame.time_delta_displayed  -Y '(eth.addr==00:11:88:CC:33:1B && ip.proto==17 && udp.srcport==54189)' | sort -n -r | uniq -c | sort -n -k 2 > udp_src_time.txt
 	printf " [${green}########################${reset}](100%%)\r"
 
-	echo "$\n${green}Compilando crearCDF.c...${reset}"
+	echo "\n${green}Compilando crearCDF.c...${reset}"
 	gcc -Wall -o crearCDF crearCDF.c
 
 	echo "${green}Generando ECDFs...${reset}"
 
-	./crearCDF eth_src.txt | sh toplot.sh eth_src.txt "ECDF de los tamaños a nivel 2 de los paquetes eth fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#eth_src.txt
+	if [ -s eth_src.txt ]; then
+		#./crearCDF eth_src.txt | sh toplot.sh eth_src.txt "ECDF de los tamaños a nivel 2 de los paquetes eth fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF eth_src.txt
+		toplot eth_src.txt "ECDF de los tamaños a nivel 2 de los paquetes eth fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: eth_src.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF eth_dst.txt | sh toplot.sh eth_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes eth destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#eth_dst.txt
+	if [ -s eth_dst.txt ]; then
+		#./crearCDF eth_dst.txt | sh toplot.sh eth_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes eth destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF eth_dst.txt
+		toplot eth_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes eth destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: eth_dst.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF tcp_src.txt | sh toplot.sh tcp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#tcp_src.txt
+	if [ -s tcp_src.txt ]; then
+		#./crearCDF tcp_src.txt | sh toplot.sh tcp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF tcp_src.txt
+		toplot tcp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: tcp_src.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF tcp_dst.txt | sh toplot.sh tcp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#tcp_dst.txt
+	if [ -s tcp_dst.txt ]; then
+		#./crearCDF tcp_dst.txt | sh toplot.sh tcp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF tcp_dst.txt
+		toplot tcp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes TCP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: tcp_dst.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF udp_src.txt | sh toplot.sh udp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#udp_src.txt
+	if [ -s udp_src.txt ]; then
+		#./crearCDF udp_src.txt | sh toplot.sh udp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF udp_src.txt
+		toplot udp_src.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP fuente" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: udp_src.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF udp_dst.txt | sh toplot.sh udp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	#udp_dst.txt
+	if [ -s udp_dst.txt ]; then
+		#./crearCDF udp_dst.txt | sh toplot.sh udp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+		./crearCDF udp_dst.txt
+		toplot udp_dst.txt "ECDF de los tamaños a nivel 2 de los paquetes UDP destino" "Tamano Paquetes" "Porcentaje Paquetes" "Datos"
+	else
+		echo "${orange}[WARNING]: udp_dst.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF tcp_dst_time.txt | sh toplottime.sh tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+	#tcp_dst_time.txt
+	if [ -s tcp_dst_time.txt ]; then
+		#./crearCDF tcp_dst_time.txt | sh toplottime.sh tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+		./crearCDF tcp_dst_time.txt
+		toplottime tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+	else
+		echo "${orange}[WARNING]: tcp_dst_time.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF tcp_src_time.txt | sh toplottime.sh tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+	#tcp_src_time.txt
+	if [ -s tcp_src_time.txt ]; then
+		#./crearCDF tcp_src_time.txt | sh toplottime.sh tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+		./crearCDF tcp_src_time.txt
+		toplottime tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+	else
+		echo "${orange}[WARNING]: tcp_src_time.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF udp_dst_time.txt | sh toplottime.sh udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+	#udp_dst_time.txt
+	if [ -s udp_dst_time.txt ]; then
+		#./crearCDF udp_dst_time.txt | sh toplottime.sh udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+		./crearCDF udp_dst_time.txt
+		toplottime udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+	else
+		echo "${orange}[WARNING]: udp_dst_time.txt vacio, no se genera plot${reset}"
+	fi
 
-	./crearCDF udp_src_time.txt | sh toplottime.sh udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+	#udp_src_time.txt
+	if [ -s udp_src_time.txt ]; then
+		#./crearCDF udp_src_time.txt | sh toplottime.sh udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+		./crearCDF udp_src_time.txt
+		toplottime udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+	else
+		echo "${orange}[WARNING]: udp_src_time.txt vacio, no se genera plot${reset}"
+	fi
 }
 
 #==============================================================================================
@@ -348,11 +461,11 @@ stats(){
 
 #defines
 red=`tput setaf 1`
+orange=`tput setaf 3`
 green=`tput setaf 2`
 blu=`tput setaf 4`
 bold=`tput bold`
 reset=`tput sgr0`
-
 
 if [ ! $# = 1 ]; then
 	clear
@@ -377,27 +490,16 @@ then
 	pintar_cabecera
 	stats
 	exit 0
+elif [ $1 = "--clean" ]
+then
+	rm -f Graficas/*.jpeg
+	rm -f crearCDF
+	rm -f *.out
+	rm -f *.txt
+	exit 0
 else
 	clear
 	echo "${red}Argumento no valido.${reset}"
 	pintar_info_uso
 	exit 1
 fi
-
-
-
-#TODOS los paquetes
-#echo "Volcando todos los paquetes a fichero..."
-#tshark -r traza.pcap -T text -V > todos_paquetes.txt
-#if [ ! -f todos_paquetes.out ]; then
-#    tshark -r traza.pcap -Y 'eth' >> todos_paquetes.out
-#fi
-
-
-
-#'throughput'
-#tshark -r traza.pcap -qz io,stat,1,5,"(eth.addr==00:11:88:CC:33:1B)&&((tcp && ip.addr==37.246.132.71)||(udp && udp.port==54189))" > throughput.out
-
-# eth="..." AND ((tcp AND "ip") OR (udp AND "puerto"))
-
-

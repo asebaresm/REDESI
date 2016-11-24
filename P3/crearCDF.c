@@ -36,7 +36,7 @@ int crearCDF(char* filename_data, char* filename_cdf) {
 	double porc;
 	double result;
 
-	printf("%s", filename_data);
+	//printf("%s", filename_data);
 	leer = fopen(filename_data, "r");
 	escribir = fopen(filename_cdf, "w");
 
