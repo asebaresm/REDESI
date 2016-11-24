@@ -116,7 +116,7 @@ awk '
 			print suma_valores[valor]" \t"valor;
 		}
 	}
-	' "port_framelen.out" | sort -rn | head -n 10
+	' "$1" | sort -rn | head -n 10
 }
 
 #REQUIERE: throughput.out
@@ -232,12 +232,16 @@ ranking(){
 	fi
 	printf " [${green}#############            ${reset}](50%%)\r"
 
-	if [ ! -f port_framelen.out ]; then
-		tshark -r traza.pcap -T fields -e tcp.srcport -e frame.len -Y 'ip.proto==6' > port_framelen.out
-		tshark -r traza.pcap -T fields -e tcp.dstport -e frame.len -Y 'ip.proto==6' >> port_framelen.out
-		tshark -r traza.pcap -T fields -e udp.srcport -e frame.len -Y 'ip.proto==17' >> port_framelen.out
-		tshark -r traza.pcap -T fields -e udp.srcport -e frame.len -Y 'ip.proto==17' >> port_framelen.out
+	if [ ! -f tcp_port_framelen.out ]; then
+		tshark -r traza.pcap -T fields -e tcp.srcport -e frame.len -Y 'ip.proto==6' > tcp_port_framelen.out
+		tshark -r traza.pcap -T fields -e tcp.dstport -e frame.len -Y 'ip.proto==6' >> tcp_port_framelen.out
 	fi
+
+	if [ ! -f udp_port_framelen.out ]; then
+		tshark -r traza.pcap -T fields -e udp.srcport -e frame.len -Y 'ip.proto==17' > udp_port_framelen.out
+		tshark -r traza.pcap -T fields -e udp.dstport -e frame.len -Y 'ip.proto==17' >> udp_port_framelen.out
+	fi
+
 	printf " [${green}#########################${reset}](100%%)\r"
 	printf "\n"
 
@@ -296,12 +300,25 @@ ranking(){
 
 	awk_ips
 
-	echo "\nPuertos más activos en ${blu}número de paquetes${reset}: "
+#	echo "\nPuertos más activos en ${blu}número de paquetes${reset}: "
+#	top_puertos_paquetes=$(awk -F"\t" '{print $1}' port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
+#	echo "$top_puertos_paquetes"
+
+#	echo "\nPuertos más activos en ${blu}número de bytes${reset}: "
+#	awk_ports
+
+	echo "\nPuertos ${blu}TCP${reset} más activos en ${blu}número de paquetes${reset}: "
 	top_puertos_paquetes=$(awk -F"\t" '{print $1}' port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
 	echo "$top_puertos_paquetes"
 
-	echo "\nPuertos más activos en ${blu}número de bytes${reset}: "
+	echo "\nPuertos ${blu}TCP${reset} más activos en ${blu}número de bytes${reset}: "
+	awk_ports
 
+	echo "\nPuertos ${blu}UDP${reset} más activos en ${blu}número de paquetes${reset}: "
+	top_puertos_paquetes=$(awk -F"\t" '{print $1}' port_framelen.out | sort | uniq -c | sort -rn | head -n 10)
+	echo "$top_puertos_paquetes"
+
+	echo "\nPuertos ${blu}UDP${reset} más activos en ${blu}número de bytes${reset}: "
 	awk_ports
 }
 
