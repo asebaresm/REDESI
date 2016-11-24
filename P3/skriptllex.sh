@@ -441,7 +441,7 @@ stats(){
 	if [ -s tcp_dst_time.txt ]; then
 		#./crearCDF tcp_dst_time.txt | sh toplottime.sh tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
 		./crearCDF tcp_dst_time.txt
-		toplottime tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+		toplottime tcp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo TCP destino" "Tiempos" "Porcentaje Paquetes" "Datos"
 	else
 		echo "${orange}[WARNING]: tcp_dst_time.txt vacio, no se genera plot${reset}"
 	fi
@@ -450,7 +450,7 @@ stats(){
 	if [ -s tcp_src_time.txt ]; then
 		#./crearCDF tcp_src_time.txt | sh toplottime.sh tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
 		./crearCDF tcp_src_time.txt
-		toplottime tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+		toplottime tcp_src_time.txt "ECDF de los tiempos entre llegadas del flujo TCP fuente" "Tiempos" "Porcentaje Paquetes" "Datos"
 	else
 		echo "${orange}[WARNING]: tcp_src_time.txt vacio, no se genera plot${reset}"
 	fi
@@ -459,7 +459,7 @@ stats(){
 	if [ -s udp_dst_time.txt ]; then
 		#./crearCDF udp_dst_time.txt | sh toplottime.sh udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
 		./crearCDF udp_dst_time.txt
-		toplottime udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Tiempo" "Datos"
+		toplottime udp_dst_time.txt "ECDF de los tiempos entre llegadas del flujo UDP destino" "Tiempos" "Porcentaje Paquetes" "Datos"
 	else
 		echo "${orange}[WARNING]: udp_dst_time.txt vacio, no se genera plot${reset}"
 	fi
@@ -468,7 +468,7 @@ stats(){
 	if [ -s udp_src_time.txt ]; then
 		#./crearCDF udp_src_time.txt | sh toplottime.sh udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
 		./crearCDF udp_src_time.txt
-		toplottime udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Tiempo" "Datos"
+		toplottime udp_src_time.txt "ECDF de los tiempos entre llegadas del flujo UDP fuente" "Tiempos" "Porcentaje Paquetes" "Datos"
 	else
 		echo "${orange}[WARNING]: udp_src_time.txt vacio, no se genera plot${reset}"
 	fi
