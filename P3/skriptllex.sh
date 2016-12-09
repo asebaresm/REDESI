@@ -103,6 +103,7 @@ awk_ips(){
 
 #REQUIERE: tcp_port_framelen.out, udp_port_famelen.out
 #BRIEF:    Genera una lista con awk de 2 columnas: <suma frame.len>" "<puerto asociado>
+
 awk_ports(){
 awk '
 	BEGIN {
@@ -298,7 +299,7 @@ ranking(){
 
 	echo "\nDirecciones IP más activas en ${blu}número de bytes${reset}: "
 	#tshark -r traza.pcap -T fields -e ip.src -e ip.dst -e frame.len -Y 'ip' > todos.out
-	filtered_count=$(wc -l < ips_framelen.out)
+	#filtered_count=$(wc -l < ips_framelen.out)
 
 	awk_ips
 
