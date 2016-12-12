@@ -194,7 +194,7 @@ int main(int argc, char **argv){
 
 uint8_t enviar(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
 	uint16_t protocolo=pila_protocolos[0];
-printf("Enviar(%"PRIu16") %s %d.\n",protocolo,__FILE__,__LINE__);
+	printf("Enviar(%"PRIu16") %s %d.\n",protocolo,__FILE__,__LINE__);
 	if(protocolos_registrados[protocolo]==NULL){
 		printf("Protocolo %"PRIu16" desconocido\n",protocolo);
 		return ERROR;
@@ -262,29 +262,168 @@ printf("modulo UDP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 
 uint8_t moduloIP(uint8_t* segmento, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
 	uint8_t datagrama[IP_DATAGRAM_MAX]={0};
+	uint8_t datagrama2[IP_DATAGRAM_MAX]={0};
+
 	uint32_t aux32;
 	uint16_t aux16;
 	uint8_t aux8;
-	uint32_t pos=0,pos_control=0;
+
+	uint32_t pos=0,pos_control=0,posChecksum = 0, posChecksumInicial=0, posFragmentacion=0, posDatosAux=0;
 	uint8_t IP_origen[IP_ALEN];
 	uint16_t protocolo_superior=pila_protocolos[0];
 	uint16_t protocolo_inferior=pila_protocolos[2];
 	pila_protocolos++;
 	uint8_t mascara[IP_ALEN],IP_rango_origen[IP_ALEN],IP_rango_destino[IP_ALEN];
 
-printf("modulo IP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
+	uint8_t checksum[2], uno=1;
+	int i = 0;
+	int flagSubred=1;
+	uint16_t MTU=0, tam_data = 0, numPaquetesFrag = 0, mascaraPosicion=0, offset_aux=0;
+
+	uint8_t gateway[IP_ALEN];
+
+	printf("modulo IP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 
 	Parametros ipdatos=*((Parametros*)parametros);
 	uint8_t* IP_destino=ipdatos.IP_destino;
 
-//TODO
-//Llamar a ARPrequest(·) adecuadamente y usar ETH_destino de la estructura parametros
-//[...] 
-//TODO A implementar el datagrama y fragmentación (en caso contrario, control de tamano)
-//[...] 
-//llamada/s a protocolo de nivel inferior [...]
+	//Comprobar longitud
+	if (longitud>pow(2,16)){
+		printf("Error: mensaje demasiado grande para IP (%f).\n",pow(2,16));
+		return ERROR;
+	}
 
+	//Construir la cabecera IP
+		aux8=0x45; 
+	//aux8|0x45
+	memcpy(datagrama+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+	//Tipo de servicio
+	//Todo 0
+	aux8=0x00;
+	memcpy(datagrama+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+	//longitud total 
+	//Longitud total = longitud del segmento mas cabecera
+	aux16 = htons(longitud + 20); //!!! tamaño cabecera
+	memcpy(datagrama+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Identificacion
+	//identifiacion 0 en fragmentados cambiara
+	aux16=htons(ID);
+	memcpy(datagrama+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Flags y posicion 0 en fragmentaos cambiara
+	aux16=0x0000;
+	posFragmentacion = pos;
+	memcpy(datagrama+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Tiempo de vida
+	//Ponemos un numero muy grande
+	aux8=0xFF;
+	memcpy(datagrama+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+	//Protocolo
+	aux8 = protocolo_superior;
+	memcpy(datagrama+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+	//Suma de control 
+	//Ponemos a 0 y luego llamamos a la funcion de cehcksum
+	//Ponemos checksum 
+	aux16=0;
+	pos_control=pos;
+	posChecksumInicial=pos;
+	memcpy(datagrama+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Obtener direccion de origen
+	if(obtenerIPInterface(interface,IP_origen) == ERROR){
+		printf("Error: En la funcion obtenerIPInterface en moduloIP\n");
+		return ERROR;
+	}
+	memcpy(datagrama+pos,IP_origen,IP_ALEN);
+	pos += IP_ALEN;
 
+	//Obtenemos mascara de la interfaz
+	if(obtenerMascaraInterface(interface, mascara) == ERROR){
+		printf("Error: Al obtener mascara interface\n");
+		return ERROR;
+	}
+
+	//Aplicamos mascara IP_rango_origen
+	if(aplicarMascara(IP_origen, mascara, IP_ALEN, IP_rango_origen) != OK){
+		printf("Error: Al aplicar mascara\n");
+		return ERROR;
+	}
+
+	//Aplicamos mascara IP_rango_destino
+	if(aplicarMascara(IP_destino, mascara, IP_ALEN, IP_rango_destino) != OK){
+		printf("Error: Al aplicar mascara\n");
+		return ERROR;
+	}
+
+	//Distinguimos entre subred o no subred
+	for(i=0;i<IP_ALEN;i++){
+		if(IP_rango_origen[i] != IP_rango_destino[i])
+			flagSubred = 0;
+	}
+
+	//Caso flagSubred=1 realizamos el salto (estamos en la subred)
+	//Caso flagSubred=0 obtenemos la ip del router
+	if (flagSubred != 0) {
+		if(ARPrequest(interface, IP_destino, ipdatos.ETH_destino) == ERROR){
+			printf("Error: En el ARP request\n");
+			return ERROR;
+		}
+	}else{
+		if(obtenerGateway(interface, gateway) == ERROR){
+			printf("Error: En al obtener gateway\n");
+			return ERROR;
+		}
+		if (ARPrequest(interface, gateway, ipdatos.ETH_destino) == ERROR){
+			printf("Error: En el ARP request\n");
+			return ERROR;
+		}
+	}
+
+	//Obtenemos la IP destino
+	printf("\n\nIP: %u.%u.%u.%u\n",IP_destino[0],IP_destino[1],IP_destino[2],IP_destino[3]);
+	memcpy(datagrama + pos, IP_destino, IP_ALEN);
+	pos += IP_ALEN;
+	//Guadamos la posicion checksum
+	posChecksum=pos;
+	//Llamar al checksum
+	if(calcularChecksum(pos,datagrama,checksum) == ERROR){
+		printf("Error: En la funcion calcularChecksum en moduloIP\n");
+		return ERROR;
+	}
+
+	//Copiamos un nuevo datagrama para el caso en que sea necesrio fragmentar
+	memcpy(datagrama2 + pos_control, checksum, CHECKSUM_SIZE);
+	memcpy(datagrama2, datagrama, pos);
+
+	/*Segmento*/
+	posDatosAux = pos;
+	memcpy(datagrama+pos, segmento, longitud);
+	pos +=longitud; //..asi esta en pos la pos + longitud
+
+	/*Obtenemos la MTU*/
+	if (obtenerMTUInterface(interface, &MTU) == ERROR) {
+		printf("Error: en la funcion obtenerMTUInterface\n");
+		return ERROR;
+	}
+	/*Una vez obtenida la MUT, calcular el tamaño de los datos
+	por fragmento*/	
+	//MTU - cabecera
+	tam_data = MTU - 20;
+	//Calcular el numero total de paquetes resultantes de la fragmentacion
+	numPaquetesFrag = (longitud + tam_data - 1) / tam_data;
+
+	for(i = 0; i < numPaquetesFrag; i++){
+
+		//FRAGMENTACION
+	}
+
+	return OK;
 }
 
 
@@ -300,23 +439,60 @@ printf("modulo IP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 ****************************************************************************************/
 
 uint8_t moduloETH(uint8_t* datagrama, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
-//TODO
-//[....]
-//[...] Variables del modulo
-uint8_t trama[ETH_FRAME_MAX]={0};
+//Variables del modulo
+	uint8_t trama[ETH_FRAME_MAX]={0};
 
-printf("modulo ETH(fisica) %s %d.\n",__FILE__,__LINE__);	
+	uint16_t aux16;
+	struct pcap_pkthdr cabeceraPcap;
+	uint32_t pos=0;
+	uint8_t ETH_origen[ETH_ALEN];
+	uint16_t protocolo_superior=pila_protocolos[0];	
 
-//TODO
-//[...] Control de tamano
+	printf("modulo ETH(fisica) %s %d.\n",__FILE__,__LINE__);	
 
-//TODO
-//[...] Cabecera del modulo
+//Control de tamano
+	if (longitud>pow(2,16)){
+		printf("Error: mensaje demasiado grande para ETH (%f).\n",pow(2,16));
+		return ERROR;
+	}
+//Cabecera del modulo
+	Parametros ethdatos=*((Parametros*)parametros);
 
-//TODO
-//Enviar a capa fisica [...]  
-//TODO
+	//Direccion ETH destino
+	memcpy(trama+pos,ethdatos.ETH_destino,ETH_ALEN);
+	pos+=ETH_ALEN;
+
+	//Direccion ETH origen
+	if(obtenerMACdeInterface(interface,ETH_origen) == ERROR){
+		printf("Error: En la funcion obtenerMACdeInterface en moduloETH\n");
+		return ERROR;
+	}
+	memcpy(trama+pos,ETH_origen,ETH_ALEN);
+	pos+=ETH_ALEN;
+	//Tipo Ethernet
+	aux16=htons(protocolo_superior);
+	memcpy(trama+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+
+	/*Copiamos a la trama*/
+	memcpy(trama+pos,datagrama,longitud);
+
+//Enviar a capa fisica [...]
+	//PROVISIONAL PARA PRUEBAS: cambiar porque es un 0
+	//https://linux.die.net/man/3/pcap_sendpacket
+	if(pcap_sendpacket(descr,trama,pos+longitud) == -1){
+		printf("Error: En pcap_sendpacket en moduloETH\n");
+		return ERROR;
+	}
+
 //Almacenamos la salida por cuestiones de debugging [...]
+	//Mostramos el paquete
+	mostrarPaquete(trama, pos + longitud);
+
+	cabeceraPcap.len = pos + longitud;
+	cabeceraPcap.caplen = cabeceraPcap.len;
+	gettimeofday(&cabeceraPcap.ts, NULL);	
+	pcap_dump((uint8_t *)pdumper,&cabeceraPcap,trama);
 	
 	return OK;
 }
@@ -356,6 +532,14 @@ uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud
 uint8_t aplicarMascara(uint8_t* IP, uint8_t* mascara, uint32_t longitud, uint8_t* resultado){
 //TODO
 //[...]
+    int i = 0;
+
+    //AND de bit a bit
+    for (i=0;i<longitud;i++) {
+        resultado[i] = IP[i] & mascara[i];
+    }
+
+    return OK;
 }
 
 
