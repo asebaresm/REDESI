@@ -31,6 +31,9 @@
 #include <inttypes.h>
 #include <math.h>
 
+/*****************************Constantes nuestras**************************************/
+#define CHECKSUM_SIZE 2 //Tam del checksum
+
 /***************************Definicion de constantes************************************/
 #define ETH_ALEN 6      	// Tamano de direccion ethernet     	
 #define ETH_HLEN 14     	// Tamano de cabecera ethernet             

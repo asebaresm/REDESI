@@ -7,10 +7,10 @@
 # banderas de compilacion (PUEDE SER UTIL CAMBIARLAS)
 CC = gcc
 #ifdef ENTREGA
-CFLAGS = -Wall -g -I .
+CFLAGS = -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -g -I .
 LDLIBS = -lm 
 #else
-CFLAGS = -Wall -g -I .
+CFLAGS = -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable -g -I .
 #-DENTREGA
 LDLIBS = -lm -lpcap
 #endif

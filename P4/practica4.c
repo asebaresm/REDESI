@@ -44,6 +44,8 @@ int main(int argc, char **argv){
 	char opt;
 	char flag_iface = 0, flag_ip = 0, flag_port = 0, flag_file = 0;
 
+	FILE *f=NULL;
+
 	static struct option options[] = {
 		{"if",required_argument,0,'1'},
 		{"ip",required_argument,0,'2'},
@@ -92,8 +94,17 @@ int main(int argc, char **argv){
 					}
 					sprintf(fichero_pcap_destino,"%s%s","stdin",".pcap");
 				} else {
+					//Leer fichero en data
 					sprintf(fichero_pcap_destino,"%s%s",optarg,".pcap");
-					//TODO Leer fichero en data [...]
+					printf("\n Fichero:  %s \n",optarg);
+					f = fopen(optarg,"rb");
+					if(f == NULL){
+						printf("\n Error en fopen \n");
+						return ERROR;
+						
+					}
+					fread(data,sizeof(uint8_t),IP_DATAGRAM_MAX,f);
+					fclose(f);
 				}
 				flag_file = 1;
 
@@ -164,6 +175,7 @@ int main(int argc, char **argv){
 	printf("Enviado mensaje %"PRIu64", almacenado en %s\n\n\n", cont,fichero_pcap_destino);
 
 		//Luego, un paquete ICMP en concreto un ping
+	/*
 	pila_protocolos[0]=ICMP_PROTO; pila_protocolos[1]=IP_PROTO; pila_protocolos[2]=0;
 	Parametros parametros_icmp; parametros_icmp.tipo=PING_TIPO; parametros_icmp.codigo=PING_CODE; memcpy(parametros_icmp.IP_destino,IP_destino_red,IP_ALEN);
 	if(enviar((uint8_t*)"Probando a hacer un ping",pila_protocolos,strlen("Probando a hacer un ping"),&parametros_icmp)==ERROR ){
@@ -172,7 +184,7 @@ int main(int argc, char **argv){
 	}
 	else	cont++;
 	printf("Enviado mensaje %"PRIu64", ICMP almacenado en %s\n\n", cont,fichero_pcap_destino);
-
+	*/
 		//Cerramos descriptores
 	pcap_close(descr);
 	pcap_dump_close(pdumper);
@@ -221,12 +233,14 @@ uint8_t enviar(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud,voi
 
 uint8_t moduloUDP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
 	uint8_t segmento[UDP_SEG_MAX]={0};
-	uint16_t puerto_origen = 0,suma_control=0;
+	uint16_t puerto_origen = 0,suma_control=0x00;
 	uint16_t aux16;
 	uint32_t pos=0;
 	uint16_t protocolo_inferior=pila_protocolos[1];
-printf("modulo UDP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
+	uint16_t longitud_total=0;
+	printf("modulo UDP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 
+	//Comprobar la longitud
 	if (longitud>(pow(2,16)-UDP_HLEN)){
 		printf("Error: mensaje demasiado grande para UDP (%f).\n",(pow(2,16)-UDP_HLEN));
 		return ERROR;
@@ -235,16 +249,34 @@ printf("modulo UDP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 	Parametros udpdatos=*((Parametros*)parametros);
 	uint16_t puerto_destino=udpdatos.puerto_destino;
 
-//TODO
-//[...] 
-//obtenerPuertoOrigen(·)
+
+	if(obtenerPuertoOrigen(&puerto_origen) == ERROR){
+		printf("Error: En la funcion obtenerPuertoOrigen en moduloUDP\n");
+		return ERROR;
+	}
 	aux16=htons(puerto_origen);
 	memcpy(segmento+pos,&aux16,sizeof(uint16_t));
 	pos+=sizeof(uint16_t);
+	//Escribir el puerto destino
+	aux16=htons(puerto_destino);
+	memcpy(segmento+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Escribir la longitud
+	//Longitud total es cabecera UDP + mensaje
+	longitud_total = longitud + UDP_HLEN;
+	aux16=htons(longitud_total);
+	memcpy(segmento+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+	//Escribir suma de control o check sum (siempre 0 por simplcidad en UDP)
+	memcpy(segmento+pos,&suma_control,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
 	
-//TODO Completar el segmento [...]
-//[...] 
+	//Escribir los datos
+	memcpy(segmento+pos,mensaje,longitud);
+
+
 //Se llama al protocolo definido de nivel inferior a traves de los punteros registrados en la tabla de protocolos registrados
+	//mostrarPaquete(segmento, pos+longitud) ;
 	return protocolos_registrados[protocolo_inferior](segmento,pila_protocolos,longitud+pos,parametros);
 }
 
@@ -419,8 +451,51 @@ uint8_t moduloIP(uint8_t* segmento, uint16_t* pila_protocolos,uint64_t longitud,
 	numPaquetesFrag = (longitud + tam_data - 1) / tam_data;
 
 	for(i = 0; i < numPaquetesFrag; i++){
+		/*Flags de posicion */
+		//0x3FFF = 001111...11
+		mascaraPosicion = offset_aux & 0x3FFF;
+		mascaraPosicion = mascaraPosicion >> 3;
 
-		//FRAGMENTACION
+		//Comprobar si es el último paquete
+		if(i+1 == numPaquetesFrag){
+			tam_data = longitud;
+			mascaraPosicion = ntohs(mascaraPosicion);
+		}else{ //no lo es
+			mascaraPosicion = ntohs(mascaraPosicion | (uno << 13));
+		}
+
+		/*copiarlo*/
+		memcpy(datagrama2+posFragmentacion, &mascaraPosicion,sizeof(uint16_t));
+
+		/*Insertar el offset*/
+		//tam data + cabecera
+		aux16 = htons(tam_data + 20);
+		memcpy(datagrama2+2,&aux16,sizeof(uint16_t));
+
+		/*Calcular e insertar el uevo checksum*/
+		aux16=0x0000;
+		memcpy(datagrama2+posChecksumInicial,&aux16,sizeof(uint16_t));
+
+		if (calcularChecksum(posChecksum, datagrama2, checksum) == ERROR) {
+			printf("Error: calcularChecksum en moduloIP\n");
+			return ERROR;
+		}
+		//Copiarlo  (checksum)
+		memcpy(datagrama2+posChecksumInicial, checksum, CHECKSUM_SIZE);
+
+		//Copiar los datos al fragmento
+		memcpy(datagrama2+posDatosAux,segmento,tam_data);
+		segmento=segmento+tam_data;
+
+		//Enviarlo a ETH
+		if (protocolos_registrados[protocolo_inferior](datagrama2,pila_protocolos,tam_data + 20,&ipdatos) == ERROR)
+		{
+			printf("Error: en protocolos_registrados moduloIP\n");
+			return ERROR;
+		}
+
+		offset_aux=offset_aux + tam_data;
+		longitud = longitud - tam_data;
 	}
 
 	return OK;
@@ -508,12 +583,13 @@ uint8_t moduloETH(uint8_t* datagrama, uint16_t* pila_protocolos,uint64_t longitu
 *  -parametros: parametros necesario para el envio este protocolo			*
 * Retorno: OK/ERROR									*
 ****************************************************************************************/
-
+/*
 uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
-//TODO
-//[....]
+	uint8_t foo_ret = 0;
 
+	return foo_ret;
 }
+*/
 
 
 /***************************Funciones auxiliares a implementar***********************************/
@@ -612,9 +688,12 @@ uint8_t inicializarPilaEnviar() {
 	if(registrarProtocolo(IP_PROTO, moduloIP, protocolos_registrados)==ERROR)
 		return ERROR;
 	
-//TODO
-//A registrar los modulos de UDP y ICMP [...] 
-
+	if(registrarProtocolo(UDP_PROTO, moduloUDP, protocolos_registrados) == ERROR)
+		return ERROR;
+	/*
+	if(registrarProtocolo(ICMP_PROTO, moduloICMP, protocolos_registrados)==ERROR)
+		return ERROR; 
+	*/
 	return OK;
 }
 
