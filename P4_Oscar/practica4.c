@@ -605,7 +605,6 @@ uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud
 
 	Parametros icmpdatos=*((Parametros*)parametros);
 
-
 	aux8=htons(tipo);
 	memcpy(segmento+pos,&aux8,sizeof(uint16_t));
 	pos+=sizeof(uint8_t);
