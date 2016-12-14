@@ -596,6 +596,7 @@ uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud
 	uint16_t aux16;
 	uint32_t pos=0;
 	uint16_t protocolo_inferior=pila_protocolos[1];
+	printf("modulo UDP(%"PRIu16") %s %d.\n",protocolo_inferior,__FILE__,__LINE__);
 
 	//Comprobar la longitud
 	if (longitud>(pow(2,16)-UDP_HLEN)){
@@ -606,6 +607,10 @@ uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud
 	Parametros icmpdatos=*((Parametros*)parametros);
 
 
+	if(obtenerPuertoOrigen(&puerto_origen) == ERROR){
+		printf("Error: En la funcion obtenerPuertoOrigen en moduloUDP\n");
+		return ERROR;
+	}
 	aux8=htons(tipo);
 	memcpy(segmento+pos,&aux8,sizeof(uint16_t));
 	pos+=sizeof(uint8_t);
@@ -767,6 +772,5 @@ uint8_t registrarProtocolo(uint16_t protocolo, pf_notificacion handleModule, pf_
 		protocolos_registrados[protocolo]=handleModule;
 	return OK;
 }
-
 
 
