@@ -175,7 +175,7 @@ int main(int argc, char **argv){
 	printf("Enviado mensaje %"PRIu64", almacenado en %s\n\n\n", cont,fichero_pcap_destino);
 
 		//Luego, un paquete ICMP en concreto un ping
-	/*
+	
 	pila_protocolos[0]=ICMP_PROTO; pila_protocolos[1]=IP_PROTO; pila_protocolos[2]=0;
 	Parametros parametros_icmp; parametros_icmp.tipo=PING_TIPO; parametros_icmp.codigo=PING_CODE; memcpy(parametros_icmp.IP_destino,IP_destino_red,IP_ALEN);
 	if(enviar((uint8_t*)"Probando a hacer un ping",pila_protocolos,strlen("Probando a hacer un ping"),&parametros_icmp)==ERROR ){
@@ -184,7 +184,7 @@ int main(int argc, char **argv){
 	}
 	else	cont++;
 	printf("Enviado mensaje %"PRIu64", ICMP almacenado en %s\n\n", cont,fichero_pcap_destino);
-	*/
+	
 		//Cerramos descriptores
 	pcap_close(descr);
 	pcap_dump_close(pdumper);
@@ -583,13 +583,62 @@ uint8_t moduloETH(uint8_t* datagrama, uint16_t* pila_protocolos,uint64_t longitu
 *  -parametros: parametros necesario para el envio este protocolo			*
 * Retorno: OK/ERROR									*
 ****************************************************************************************/
-/*
+
 uint8_t moduloICMP(uint8_t* mensaje, uint16_t* pila_protocolos,uint64_t longitud,void *parametros){
 	uint8_t foo_ret = 0;
 
-	return foo_ret;
+	uint8_t segmento[UDP_SEG_MAX]={0};
+	uint8_t tipo = 8;
+	uint8_t codigo = 0;
+	uint8_t aux8;
+	uint8_t checksum[2];
+	uint8_t id = rand();
+	uint16_t aux16;
+	uint32_t pos=0;
+	uint16_t protocolo_inferior=pila_protocolos[1];
+
+	//Comprobar la longitud
+	if (longitud>(pow(2,16)-UDP_HLEN)){
+		printf("Error: mensaje demasiado grande para UDP (%f).\n",(pow(2,16)-UDP_HLEN));
+		return ERROR;
+	}
+
+	Parametros icmpdatos=*((Parametros*)parametros);
+
+	aux8=htons(tipo);
+	memcpy(segmento+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+
+	aux8=htons(codigo);
+	memcpy(segmento+pos,&aux8,sizeof(uint8_t));
+	pos+=sizeof(uint8_t);
+
+	/*if(calcularChecksum(longitud + pos + 6, segmento ,checksum) == ERROR){
+		printf("Error: En la funcion calcularChecksum en moduloIP\n");
+		return ERROR;
+	}	*/
+	
+	memcpy(segmento+pos,&aux8, sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+
+	//Escribir el puerto destino
+	aux16=htons(id);
+	memcpy(segmento+pos,&aux16,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+
+	aux16=htons(1);
+	memcpy(segmento+pos,&aux16,sizeof(uint16_t));
+	
+	if(calcularChecksum(longitud + pos, segmento ,checksum) == ERROR){
+		printf("Error: En la funcion calcularChecksum en moduloIP\n");
+		return ERROR;
+	}	
+	memcpy(segmento+ 2 ,checksum,sizeof(uint16_t));
+	pos+=sizeof(uint16_t);
+
+	return protocolos_registrados[protocolo_inferior](segmento,pila_protocolos,longitud+pos,parametros);
 }
-*/
+
 
 
 /***************************Funciones auxiliares a implementar***********************************/
@@ -690,10 +739,10 @@ uint8_t inicializarPilaEnviar() {
 	
 	if(registrarProtocolo(UDP_PROTO, moduloUDP, protocolos_registrados) == ERROR)
 		return ERROR;
-	/*
+	
 	if(registrarProtocolo(ICMP_PROTO, moduloICMP, protocolos_registrados)==ERROR)
 		return ERROR; 
-	*/
+	
 	return OK;
 }
 
